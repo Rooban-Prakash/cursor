@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Utc};
 use serde::Serialize;
 use std::fs;
 use std::io::Read;
@@ -49,8 +49,10 @@ fn format_time(time: SystemTime) -> String {
     match time.duration_since(SystemTime::UNIX_EPOCH) {
         Ok(d) => {
             let secs = d.as_secs() as i64;
-            if let Some(dt) = DateTime::<Local>::from_timestamp(secs, 0) {
-                dt.format("%b %d, %Y %H:%M").to_string()
+            if let Some(dt) = DateTime::<Utc>::from_timestamp(secs, 0) {
+                dt.with_timezone(&Local)
+                    .format("%b %d, %Y %H:%M")
+                    .to_string()
             } else {
                 "Unknown".to_string()
             }
@@ -155,13 +157,13 @@ fn count_dir(path: &Path) -> (usize, usize) {
 }
 
 #[tauri::command]
-pub fn get_desktop_contents() -> Result<DirListing, String> {
+fn get_desktop_contents() -> Result<DirListing, String> {
     let path = desktop_path();
     list_directory(&path, "Desktop")
 }
 
 #[tauri::command]
-pub fn get_quick_access() -> Result<Vec<QuickAccessItem>, String> {
+fn get_quick_access() -> Result<Vec<QuickAccessItem>, String> {
     let locations: Vec<(&str, &str, fn() -> Option<PathBuf>)> = vec![
         ("Desktop", "desktop", || dirs::desktop_dir()),
         ("Documents", "documents", || dirs::document_dir()),
@@ -194,7 +196,7 @@ pub fn get_quick_access() -> Result<Vec<QuickAccessItem>, String> {
 }
 
 #[tauri::command]
-pub fn get_recent_files(limit: Option<usize>) -> Result<Vec<FileEntry>, String> {
+fn get_recent_files(limit: Option<usize>) -> Result<Vec<FileEntry>, String> {
     let limit = limit.unwrap_or(20);
     let search_roots: Vec<PathBuf> = [
         dirs::desktop_dir(),
@@ -250,7 +252,7 @@ fn collect_recent_files(dir: &Path, depth: u32, out: &mut Vec<(FileEntry, System
 }
 
 #[tauri::command]
-pub fn browse_directory(path: String) -> Result<DirListing, String> {
+fn browse_directory(path: String) -> Result<DirListing, String> {
     let p = PathBuf::from(&path);
     let label = p
         .file_name()
@@ -260,7 +262,7 @@ pub fn browse_directory(path: String) -> Result<DirListing, String> {
 }
 
 #[tauri::command]
-pub fn get_preview(path: String) -> Result<PreviewData, String> {
+fn get_preview(path: String) -> Result<PreviewData, String> {
     let p = PathBuf::from(&path);
     if !p.exists() {
         return Err(format!("Path does not exist: {path}"));
