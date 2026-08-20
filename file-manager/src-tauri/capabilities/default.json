@@ -5,9 +5,18 @@
   "permissions": [
     "core:default",
     "core:path:default",
+    "opener:default",
     {
-      "identifier": "shell:allow-open",
+      "identifier": "opener:allow-open-path",
       "allow": [
+        { "path": "/**" },
+        { "path": "**" }
+      ]
+    },
+    {
+      "identifier": "opener:allow-reveal-item-in-dir",
+      "allow": [
+        { "path": "/**" },
         { "path": "**" }
       ]
     }

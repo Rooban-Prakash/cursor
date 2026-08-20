@@ -1,5 +1,6 @@
 const invoke = window.__TAURI__.core.invoke;
-const open = window.__TAURI__.shell?.open ?? window.__TAURI__.plugin?.shell?.open;
+const openPath = window.__TAURI__.opener?.openPath;
+const revealItemInDir = window.__TAURI__.opener?.revealItemInDir;
 
 const state = {
   activeTab: "quick-access",
@@ -150,7 +151,7 @@ function createFileItem(entry, opts = {}) {
   `;
 
   li.addEventListener("click", () => selectItem(entry.path, entry.name));
-  li.addEventListener("dblclick", () => openItem(entry.path, entry.is_dir));
+  li.addEventListener("dblclick", () => openItem(entry.path));
 
   return li;
 }
@@ -255,18 +256,17 @@ async function browseLocation(path, name) {
   }
 }
 
-async function openItem(path, isDir) {
+async function openItem(path) {
   try {
-    await open(path);
+    await openPath(path);
   } catch (err) {
     setStatus(`Could not open: ${err}`);
   }
 }
 
-async function openParentFolder(filePath) {
-  const parent = filePath.replace(/[\\/][^\\/]+$/, "");
+async function showInFolder(path) {
   try {
-    await open(parent);
+    await revealItemInDir(path);
   } catch (err) {
     setStatus(`Could not open folder: ${err}`);
   }
@@ -295,21 +295,21 @@ function initActions() {
   $("#btn-refresh").addEventListener("click", refreshAll);
 
   $("#btn-open-desktop").addEventListener("click", async () => {
-    if (state.desktopData?.path) await open(state.desktopData.path);
+    if (state.desktopData?.path) await openPath(state.desktopData.path);
   });
 
   $("#btn-open-item").addEventListener("click", () => {
     if (state.previewData) {
-      openItem(state.previewData.path, state.previewData.is_dir);
+      openItem(state.previewData.path);
     }
   });
 
   $("#btn-open-location").addEventListener("click", () => {
     if (state.previewData) {
       if (state.previewData.is_dir) {
-        openItem(state.previewData.path, true);
+        openItem(state.previewData.path);
       } else {
-        openParentFolder(state.previewData.path);
+        showInFolder(state.previewData.path);
       }
     }
   });
