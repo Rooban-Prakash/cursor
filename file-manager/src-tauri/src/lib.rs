@@ -1,9 +1,10 @@
 use chrono::{DateTime, Local, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+use tauri::Manager;
 
 #[derive(Serialize, Clone)]
 pub struct FileEntry {
@@ -12,16 +13,30 @@ pub struct FileEntry {
     pub is_dir: bool,
     pub size: u64,
     pub modified: String,
+    pub modified_ts: i64,
     pub extension: String,
 }
 
 #[derive(Serialize)]
 pub struct DirListing {
     pub path: String,
+    pub parent_path: Option<String>,
     pub label: String,
     pub files: Vec<FileEntry>,
     pub file_count: usize,
     pub folder_count: usize,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct QuickAccessPin {
+    pub name: String,
+    pub path: String,
+    #[serde(default = "default_pin_icon")]
+    pub icon: String,
+}
+
+fn default_pin_icon() -> String {
+    "folder".to_string()
 }
 
 #[derive(Serialize)]
@@ -45,19 +60,22 @@ pub struct PreviewData {
     pub children: Vec<FileEntry>,
 }
 
-fn format_time(time: SystemTime) -> String {
+fn format_time(time: SystemTime) -> (String, i64) {
     match time.duration_since(SystemTime::UNIX_EPOCH) {
         Ok(d) => {
             let secs = d.as_secs() as i64;
             if let Some(dt) = DateTime::<Utc>::from_timestamp(secs, 0) {
-                dt.with_timezone(&Local)
-                    .format("%b %d, %Y %H:%M")
-                    .to_string()
+                (
+                    dt.with_timezone(&Local)
+                        .format("%b %d, %Y %H:%M")
+                        .to_string(),
+                    secs,
+                )
             } else {
-                "Unknown".to_string()
+                ("Unknown".to_string(), 0)
             }
         }
-        Err(_) => "Unknown".to_string(),
+        Err(_) => ("Unknown".to_string(), 0),
     }
 }
 
@@ -86,10 +104,10 @@ fn entry_from_path(path: &Path) -> Option<FileEntry> {
             .map(|e| e.to_string_lossy().to_string())
             .unwrap_or_default()
     };
-    let modified = meta
+    let (modified, modified_ts) = meta
         .modified()
         .map(format_time)
-        .unwrap_or_else(|_| "Unknown".to_string());
+        .unwrap_or_else(|_| ("Unknown".to_string(), 0));
 
     Some(FileEntry {
         name,
@@ -97,8 +115,15 @@ fn entry_from_path(path: &Path) -> Option<FileEntry> {
         is_dir: meta.is_dir(),
         size: if meta.is_dir() { 0 } else { meta.len() },
         modified,
+        modified_ts,
         extension,
     })
+}
+
+fn parent_path(path: &Path) -> Option<String> {
+    path.parent()
+        .filter(|p| p != path && p.as_os_str().len() > 0)
+        .map(|p| p.to_string_lossy().to_string())
 }
 
 fn list_directory(path: &Path, label: &str) -> Result<DirListing, String> {
@@ -106,25 +131,18 @@ fn list_directory(path: &Path, label: &str) -> Result<DirListing, String> {
         return Err(format!("Path does not exist: {}", path.display()));
     }
 
-    let mut entries: Vec<FileEntry> = fs::read_dir(path)
+    let entries: Vec<FileEntry> = fs::read_dir(path)
         .map_err(|e| e.to_string())?
         .filter_map(|e| e.ok())
         .filter_map(|e| entry_from_path(&e.path()))
         .collect();
-
-    entries.sort_by(|a, b| {
-        match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
-    });
 
     let folder_count = entries.iter().filter(|e| e.is_dir).count();
     let file_count = entries.len() - folder_count;
 
     Ok(DirListing {
         path: path.to_string_lossy().to_string(),
+        parent_path: parent_path(path),
         label: label.to_string(),
         files: entries,
         file_count,
@@ -148,22 +166,19 @@ fn count_dir(path: &Path) -> (usize, usize) {
         .ok()
         .map(|rd| rd.filter_map(|e| e.ok()).collect())
         .unwrap_or_default();
-    let folders = entries
-        .iter()
-        .filter(|e| e.path().is_dir())
-        .count();
+    let folders = entries.iter().filter(|e| e.path().is_dir()).count();
     let files = entries.len() - folders;
     (files, folders)
 }
 
-#[tauri::command]
-fn get_desktop_contents() -> Result<DirListing, String> {
-    let path = desktop_path();
-    list_directory(&path, "Desktop")
+fn pin_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())
+        .map(|p| p.join("quick_access.json"))
 }
 
-#[tauri::command]
-fn get_quick_access() -> Result<Vec<QuickAccessItem>, String> {
+fn default_quick_access_pins() -> Vec<QuickAccessPin> {
     let locations: Vec<(&str, &str, fn() -> Option<PathBuf>)> = vec![
         ("Desktop", "desktop", || dirs::desktop_dir()),
         ("Documents", "documents", || dirs::document_dir()),
@@ -174,35 +189,99 @@ fn get_quick_access() -> Result<Vec<QuickAccessItem>, String> {
         ("Home", "home", || dirs::home_dir()),
     ];
 
-    let items = locations
+    locations
         .into_iter()
         .filter_map(|(name, icon, path_fn)| {
             let path = path_fn()?;
             if !path.exists() {
                 return None;
             }
-            let (file_count, folder_count) = count_dir(&path);
-            Some(QuickAccessItem {
+            Some(QuickAccessPin {
                 name: name.to_string(),
                 path: path.to_string_lossy().to_string(),
                 icon: icon.to_string(),
-                file_count,
-                folder_count,
             })
         })
-        .collect();
+        .collect()
+}
 
-    Ok(items)
+fn load_pins_from_disk(app: &tauri::AppHandle) -> Result<Vec<QuickAccessPin>, String> {
+    let config_path = pin_config_path(app)?;
+    if !config_path.exists() {
+        return Ok(default_quick_access_pins());
+    }
+    let content = fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let pins: Vec<QuickAccessPin> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(pins
+        .into_iter()
+        .filter(|p| PathBuf::from(&p.path).exists())
+        .collect())
+}
+
+fn pins_to_items(pins: Vec<QuickAccessPin>) -> Vec<QuickAccessItem> {
+    pins.into_iter()
+        .map(|pin| {
+            let path = PathBuf::from(&pin.path);
+            let (file_count, folder_count) = count_dir(&path);
+            QuickAccessItem {
+                name: pin.name,
+                path: pin.path,
+                icon: pin.icon,
+                file_count,
+                folder_count,
+            }
+        })
+        .collect()
+}
+
+#[tauri::command]
+fn get_desktop_contents() -> Result<DirListing, String> {
+    let path = desktop_path();
+    list_directory(&path, "Desktop")
+}
+
+#[tauri::command]
+fn get_quick_access(app: tauri::AppHandle) -> Result<Vec<QuickAccessItem>, String> {
+    let pins = load_pins_from_disk(&app)?;
+    Ok(pins_to_items(pins))
+}
+
+#[tauri::command]
+fn save_quick_access(
+    app: tauri::AppHandle,
+    pins: Vec<QuickAccessPin>,
+) -> Result<Vec<QuickAccessItem>, String> {
+    let config_path = pin_config_path(&app)?;
+    if let Some(parent) = config_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let cleaned: Vec<QuickAccessPin> = pins
+        .into_iter()
+        .filter(|p| PathBuf::from(&p.path).exists())
+        .collect();
+    let json = serde_json::to_string_pretty(&cleaned).map_err(|e| e.to_string())?;
+    fs::write(&config_path, json).map_err(|e| e.to_string())?;
+    Ok(pins_to_items(cleaned))
+}
+
+#[tauri::command]
+fn reset_quick_access(app: tauri::AppHandle) -> Result<Vec<QuickAccessItem>, String> {
+    let config_path = pin_config_path(&app)?;
+    if config_path.exists() {
+        fs::remove_file(&config_path).map_err(|e| e.to_string())?;
+    }
+    Ok(pins_to_items(default_quick_access_pins()))
 }
 
 #[tauri::command]
 fn get_recent_files(limit: Option<usize>) -> Result<Vec<FileEntry>, String> {
-    let limit = limit.unwrap_or(20);
+    let limit = limit.unwrap_or(50);
     let search_roots: Vec<PathBuf> = [
         dirs::desktop_dir(),
         dirs::document_dir(),
         dirs::download_dir(),
         dirs::picture_dir(),
+        dirs::home_dir(),
     ]
     .into_iter()
     .flatten()
@@ -211,7 +290,7 @@ fn get_recent_files(limit: Option<usize>) -> Result<Vec<FileEntry>, String> {
     let mut all_files: Vec<(FileEntry, SystemTime)> = Vec::new();
 
     for root in search_roots {
-        collect_recent_files(&root, 3, &mut all_files);
+        collect_recent_files(&root, 4, &mut all_files);
     }
 
     all_files.sort_by(|a, b| b.1.cmp(&a.1));
@@ -277,10 +356,10 @@ fn get_preview(path: String) -> Result<PreviewData, String> {
         .extension()
         .map(|e| e.to_string_lossy().to_string())
         .unwrap_or_default();
-    let modified = meta
+    let (modified, _) = meta
         .modified()
         .map(format_time)
-        .unwrap_or_else(|_| "Unknown".to_string());
+        .unwrap_or_else(|_| ("Unknown".to_string(), 0));
     let is_dir = meta.is_dir();
     let size = if is_dir {
         "—".to_string()
@@ -351,9 +430,12 @@ fn read_text_preview(path: &Path, extension: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_desktop_contents,
             get_quick_access,
+            save_quick_access,
+            reset_quick_access,
             get_recent_files,
             browse_directory,
             get_preview,

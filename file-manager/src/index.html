@@ -28,13 +28,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         Quick Access
       </button>
+      <button class="tab" data-tab="browse" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span id="browse-tab-label">Browse</span>
+      </button>
       <button class="tab" data-tab="recent" role="tab" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Recent Files
-      </button>
-      <button class="tab" data-tab="desktop" role="tab" aria-selected="false" id="tab-desktop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        <span id="desktop-tab-label">Desktop</span>
       </button>
       <button class="tab" data-tab="preview" role="tab" aria-selected="false" id="tab-preview">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -47,25 +47,80 @@
       <section class="panel active" id="panel-quick-access" role="tabpanel">
         <div class="panel-toolbar">
           <span class="panel-subtitle">Pinned locations</span>
+          <div class="toolbar-actions">
+            <button class="btn-text" id="btn-add-pin" title="Add folder">+ Add</button>
+            <button class="btn-text btn-muted" id="btn-reset-pins" title="Reset to defaults">Reset</button>
+          </div>
         </div>
         <ul class="file-list" id="quick-access-list"></ul>
       </section>
 
-      <!-- Recent Files -->
-      <section class="panel" id="panel-recent" role="tabpanel">
-        <div class="panel-toolbar">
-          <span class="panel-subtitle">Recently modified</span>
+      <!-- Browse -->
+      <section class="panel" id="panel-browse" role="tabpanel">
+        <div class="nav-toolbar">
+          <button class="btn-icon btn-nav" id="btn-back" title="Back" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="btn-icon btn-nav" id="btn-up" title="Up one level" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <nav class="breadcrumbs" id="breadcrumbs" aria-label="Folder path"></nav>
         </div>
-        <ul class="file-list" id="recent-list"></ul>
+        <div class="panel-toolbar sort-toolbar">
+          <div class="sort-controls">
+            <label class="sort-label">
+              Sort
+              <select id="browse-sort-by" class="sort-select">
+                <option value="name">Name</option>
+                <option value="type">Type</option>
+                <option value="size">Size</option>
+                <option value="modified">Date modified</option>
+              </select>
+            </label>
+            <label class="sort-label">
+              Order
+              <select id="browse-sort-order" class="sort-select">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </label>
+            <label class="sort-check">
+              <input type="checkbox" id="browse-folders-first" checked />
+              Folders first
+            </label>
+          </div>
+          <div class="toolbar-actions">
+            <button class="btn-text" id="btn-pin-current" title="Pin this folder">Pin</button>
+            <button class="btn-text" id="btn-open-browse" title="Open in Explorer">Open</button>
+          </div>
+        </div>
+        <ul class="file-list" id="browse-list"></ul>
       </section>
 
-      <!-- Desktop -->
-      <section class="panel" id="panel-desktop" role="tabpanel">
-        <div class="panel-toolbar">
-          <span class="panel-subtitle" id="desktop-path-label">Desktop</span>
-          <button class="btn-text" id="btn-open-desktop" title="Open in Explorer">Open folder</button>
+      <!-- Recent Files -->
+      <section class="panel" id="panel-recent" role="tabpanel">
+        <div class="panel-toolbar sort-toolbar">
+          <span class="panel-subtitle">Recently modified</span>
+          <div class="sort-controls">
+            <label class="sort-label">
+              Sort
+              <select id="recent-sort-by" class="sort-select">
+                <option value="modified">Date modified</option>
+                <option value="name">Name</option>
+                <option value="type">Type</option>
+                <option value="size">Size</option>
+              </select>
+            </label>
+            <label class="sort-label">
+              Order
+              <select id="recent-sort-order" class="sort-select">
+                <option value="desc">Descending</option>
+                <option value="asc">Ascending</option>
+              </select>
+            </label>
+          </div>
         </div>
-        <ul class="file-list" id="desktop-list"></ul>
+        <ul class="file-list" id="recent-list"></ul>
       </section>
 
       <!-- Preview -->
@@ -107,6 +162,7 @@
           <div class="preview-actions">
             <button class="btn-primary" id="btn-open-item">Open</button>
             <button class="btn-secondary" id="btn-open-location">Show in folder</button>
+            <button class="btn-secondary" id="btn-browse-item">Browse here</button>
           </div>
         </div>
       </section>

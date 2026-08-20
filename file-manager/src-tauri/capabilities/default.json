@@ -5,6 +5,7 @@
   "permissions": [
     "core:default",
     "core:path:default",
+    "dialog:default",
     "opener:default",
     {
       "identifier": "opener:allow-open-path",

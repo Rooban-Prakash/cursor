@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Desktop file and directory management widget",
   "scripts": {
-    "dev": "npx tauri dev",
-    "build": "npx tauri build",
-    "tauri": "npx tauri"
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"

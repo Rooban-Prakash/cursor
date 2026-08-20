@@ -581,3 +581,152 @@ html, body {
   color: var(--accent);
   font-weight: 500;
 }
+
+/* Navigation */
+.nav-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.btn-nav {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.btn-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+  scrollbar-width: none;
+  padding: 0 4px;
+}
+
+.breadcrumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.breadcrumb-sep {
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.breadcrumb-item {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+
+.breadcrumb-item:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.btn-muted {
+  color: var(--text-muted) !important;
+}
+
+.sort-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sort-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.sort-select {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.sort-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sort-check input {
+  accent-color: var(--accent);
+}
+
+.pin-item {
+  position: relative;
+}
+
+.btn-remove-pin {
+  width: 26px;
+  height: 26px;
+  opacity: 0;
+  color: var(--danger);
+  flex-shrink: 0;
+}
+
+.pin-item:hover .btn-remove-pin {
+  opacity: 1;
+}
+
+.btn-remove-pin svg {
+  width: 13px;
+  height: 13px;
+}
+
+.preview-actions {
+  flex-wrap: wrap;
+}
+
+.preview-actions .btn-primary,
+.preview-actions .btn-secondary {
+  min-width: 0;
+  flex: 1 1 30%;
+}
